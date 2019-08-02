@@ -1,0 +1,7 @@
+** 2 Aug 2019
+
+[[file:figure-proof-of-concept.R]] creates
+
+[[file:figure-proof-of-concept.png]]
+
+
