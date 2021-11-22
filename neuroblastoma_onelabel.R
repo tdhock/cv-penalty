@@ -9,10 +9,10 @@ seq.vec <- 1:10
 cv.dt.list <- list()
 rect.dt.list <- list()
 err.dt.list <- list()
+diff.dt.list <- list()
 for(seq.i in seq.vec){
   ann <- nb.list$annotations[seq.i]
   problem.vars <- c("profile.id", "chromosome")
-  meta <- ann[,problem.vars,with=FALSE]
   pro <- nb.list$profiles[ann]
   cv.fit <- pro[, binsegRcpp::binseg_normal_cv(
     logratio,
@@ -27,47 +27,45 @@ for(seq.i in seq.vec){
   sbs.res[, min.th.const := min.th/(mad.var.est*sqrt(2*log(nrow(pro))))]
   sbs.res[, ch := c(.N, rep(0, .N-1)), by=min.th]
   sbs.res[, Kmax := cumsum(ch)]
-  greedy.selection <- penaltyLearning::modelSelection(
-    greedy.fit$splits, "loss", "segments")
-  rbind(
-    greedy.fit$splits[-1, .(algo="greedy", change=end, param=segments)],
-    sbs.res[, .(algo="th", change=cpt, param=min.th)])
-
-  
-  th.vec <- unique(sort(sbs.fit$res[,"min.th"]))
-  sbs.models <- data.table(meta, th=th.vec)
-  cpt.list <- wbs::changepoints(sbs.fit, th=th.vec)
-  sbs.changes <- data.table(th.i=seq_along(th.vec))[, {
-    th <- th.vec[[th.i]]
-    maybe.na.vec <- cpt.list$cpt.th[[th.i]]
-    change <- maybe.na.vec[!is.na(maybe.na.vec)]
-    change.pos <- cv.fit$subtrain.borders[change+1]
-    data.table(meta, th, change, change.pos)
-  }, by=th.i]
-
-  err.list <- penaltyLearning::labelError(
-    sbs.models,
-    ann,
-    sbs.changes,
-    problem.vars=problem.vars,
-    model.vars="th",
-    change.var="change.pos")
-  err.sort <- err.list$model.errors[order(-th)]
-  for(fx in c("fp","fn")){
-    d <- diff(err.sort[[fx]])
+  greedy.selection <- data.table(penaltyLearning::modelSelection(
+    greedy.fit$splits[, .(loss, segments)], "loss", "segments")
+    )[, .(max.log.lambda, segments)]
+  greedy.cpts <- greedy.selection[
+    greedy.fit$splits[-1, .(cpt=end, segments)],
+    on="segments"]
+  penalty.vec <- c(AIC=2, BIC=log(nrow(pro)))
+  for(penalty.name in names(penalty.vec)){
+    penalty.value <- penalty.vec[[penalty.name]]
     set(
-      err.sort,
-      j=paste0(fx,".diff"),
-      value=c(0, d))
+      greedy.cpts,
+      j=penalty.name,
+      value=greedy.cpts$max.log.lambda-log(penalty.value))
   }
-  err.diff <- err.sort[fp.diff != 0 | fn.diff != 0]
-  err.dt.list[[seq.i]] <- data.table(
-    seq.i, err.diff)
+  algo.list <- list(
+    "greedy.cpts"=c("AIC","BIC"),
+    "sbs.res"=c("min.th","min.th.const"))
+  for(algo.name in names(algo.list)){
+    cpt.dt <- get(algo.name)    
+    cpt.dt[, cpt.pos := cv.fit$subtrain.borders[cpt+1] ]
+    in.ann <- cpt.dt[ann$min < cpt.pos & cpt.pos < ann$max]
+    param.name.vec <- algo.list[[algo.name]]
+    for(param.name in param.name.vec){
+      first.i <- which(is.finite(in.ann[[param.name]]))[1]
+      first <- in.ann[first.i]
+      diff.dt.list[[paste(seq.i, algo.name, param.name)]] <- data.table(
+        ann[,.(profile.id,chromosome)],
+        param.name, 
+        param.value=first[[param.name]],
+        diff.fp=ifelse(ann$ann=="normal", 1, 0),
+        diff.tp=ifelse(ann$ann=="breakpoint", 1, 0))
+    }
+  }
   cv.dt.list[[seq.i]] <- data.table(
     seq.i, binseg.fit$cv)
   rect.dt.list[[seq.i]] <- binseg.fit$cv[, data.table(
     seq.i, max.times=times[1], second.times=times[2])]
 }
+diff.dt <- do.call(rbind, diff.dt.list)
 err.dt <- do.call(rbind, err.dt.list)
 cv.dt <- do.call(rbind, cv.dt.list)
 rect.dt <- do.call(rbind, rect.dt.list)
