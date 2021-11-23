@@ -2,6 +2,9 @@
 
 [[file:neuroblastoma.R]] experiment comparing various binary segmentation
 methods in nb data.
+- [[file:figure-neuroblastoma-one-label-data.R]]
+- [[file:figure-neuroblastoma-one-label-data.csv]]
+- [[file:figure-neuroblastoma-one-label.R]]
 
 ** 2 Aug 2019
 

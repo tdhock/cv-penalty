@@ -4,22 +4,28 @@ nb.list <- lapply(neuroblastoma, function(DF){
   setkey(data.table(DF), profile.id, chromosome)
 })
 
-seq.vec <- 1:nrow(nb.list$annotation)
 seq.vec <- 1:10
+seq.vec <- 1:nrow(nb.list$annotation)
 cv.dt.list <- list()
 rect.dt.list <- list()
 err.dt.list <- list()
 diff.dt.list <- list()
 for(seq.i in seq.vec){
+  cat(sprintf(
+    "%4d / %4d sequences\n",
+    seq.i,
+    length(seq.vec)))
   ann <- nb.list$annotations[seq.i]
   problem.vars <- c("profile.id", "chromosome")
   pro <- nb.list$profiles[ann]
-  cv.fit <- pro[, binsegRcpp::binseg_normal_cv(
-    logratio,
-    position.vec=position)]
+  ## cv.fit <- pro[, binsegRcpp::binseg_normal_cv(
+  ##   logratio,
+  ##   position.vec=position)]
   sbs.fit <- wbs::sbs(pro$logratio)
   sbs.res <- data.table(sbs.fit$res)[order(-min.th)]
-  greedy.fit <- binsegRcpp::binseg_normal(pro$logratio)
+  greedy.fit <- pro[, binsegRcpp::binseg_normal(
+    logratio,
+    position.vec = position)]
   ## sigma <- mad(diff(x)/sqrt(2))
   mad.var.est <- mad(diff(pro$logratio)/sqrt(2))
   ## th <- th.const * sigma * sqrt(2 * log(n))
@@ -46,7 +52,7 @@ for(seq.i in seq.vec){
     "sbs.res"=c("min.th","min.th.const"))
   for(algo.name in names(algo.list)){
     cpt.dt <- get(algo.name)    
-    cpt.dt[, cpt.pos := cv.fit$subtrain.borders[cpt+1] ]
+    cpt.dt[, cpt.pos := greedy.fit$subtrain.borders[cpt+1] ]
     in.ann <- cpt.dt[ann$min < cpt.pos & cpt.pos < ann$max]
     param.name.vec <- algo.list[[algo.name]]
     for(param.name in param.name.vec){
@@ -60,25 +66,16 @@ for(seq.i in seq.vec){
         diff.tp=ifelse(ann$ann=="breakpoint", 1, 0))
     }
   }
-  cv.dt.list[[seq.i]] <- data.table(
-    seq.i, binseg.fit$cv)
-  rect.dt.list[[seq.i]] <- binseg.fit$cv[, data.table(
-    seq.i, max.times=times[1], second.times=times[2])]
+  ## cv.dt.list[[seq.i]] <- data.table(
+  ##   seq.i, binseg.fit$cv)
+  ## rect.dt.list[[seq.i]] <- binseg.fit$cv[, data.table(
+  ##   seq.i, max.times=times[1], second.times=times[2])]
 }
 diff.dt <- do.call(rbind, diff.dt.list)
 err.dt <- do.call(rbind, err.dt.list)
 cv.dt <- do.call(rbind, cv.dt.list)
 rect.dt <- do.call(rbind, rect.dt.list)
+diff.dt[order(param.name, param.value)]
 
-library(ggplot2)
-ggplot()+
-  theme_bw()+
-  geom_rect(aes(
-    xmin=-Inf, xmax=Inf,
-    ymin=second.times, ymax=max.times),
-    data=rect.dt,
-    fill="grey")+
-  geom_point(aes(
-    segments, times),
-    data=cv.dt)+
-  facet_grid(seq.i ~ .)
+data.table::fwrite(diff.dt, "figure-neuroblastoma-one-label-data.csv")
+
