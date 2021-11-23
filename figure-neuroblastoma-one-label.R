@@ -1,8 +1,9 @@
 library(data.table)
 library(ggplot2)
-err.diffs <- data.table::fread(
-  "figure-neuroblastoma-one-label-data.csv"
-)[order(param.name, -param.value)]
+data.list <- readRDS(
+  "figure-neuroblastoma-one-label-data.rds")
+data.list$err[, lapply(.SD, sum), by=pkg, .SDcols=c("fp","fn")]
+err.diffs <- data.list$diff
 err.diffs[, .SD[c(1,.N)], by=param.name]
 thresh.diffs <- err.diffs[, lapply(
   .SD, sum),

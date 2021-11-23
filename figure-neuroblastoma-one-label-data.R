@@ -6,8 +6,6 @@ nb.list <- lapply(neuroblastoma, function(DF){
 
 seq.vec <- 1:10
 seq.vec <- 1:nrow(nb.list$annotation)
-cv.dt.list <- list()
-rect.dt.list <- list()
 err.dt.list <- list()
 diff.dt.list <- list()
 for(seq.i in seq.vec){
@@ -16,12 +14,34 @@ for(seq.i in seq.vec){
     seq.i,
     length(seq.vec)))
   ann <- nb.list$annotations[seq.i]
-  problem.vars <- c("profile.id", "chromosome")
+  meta <- ann[,.(profile.id,chromosome)]
   pro <- nb.list$profiles[ann]
-  ## cv.fit <- pro[, binsegRcpp::binseg_normal_cv(
-  ##   logratio,
-  ##   position.vec=position)]
+  set.seed(1)
+  cv.fit <- pro[, binsegRcpp::binseg_normal_cv(
+    logratio,
+    position.vec=position)]
   sbs.fit <- wbs::sbs(pro$logratio)
+  cpt.fit <- changepoint::cpt.mean(
+    pro$logratio, method="BinSeg",
+    Q=nrow(pro)/2)
+  not.end <- function(e)e[e<nrow(pro)]
+  change.list <- list(
+    binsegRcpp=coef(cv.fit)[, end],
+    changepoint=cpt.fit@cpts,
+    wbs=wbs::changepoints(sbs.fit)$cpt.th[[1]])
+  model.dt <- data.table(meta, pkg=names(change.list))
+  err.dt.list[[seq.i]] <- model.dt[, {
+    change.i <- not.end(change.list[[pkg]])
+    change.dt <- data.table(
+      meta, pkg, change.pos=cv.fit$subtrain.borders[change.i+1])
+    model.dt <- data.table(meta, pkg)
+    err.list <- penaltyLearning::labelError(
+      model.dt, ann, change.dt,
+      problem.vars=names(meta),
+      change.var="change.pos",
+      model.vars="pkg")
+    err.list$label.errors
+  }, by=pkg]
   sbs.res <- data.table(sbs.fit$res)[order(-min.th)]
   greedy.fit <- pro[, binsegRcpp::binseg_normal(
     logratio,
@@ -66,16 +86,9 @@ for(seq.i in seq.vec){
         diff.tp=ifelse(ann$ann=="breakpoint", 1, 0))
     }
   }
-  ## cv.dt.list[[seq.i]] <- data.table(
-  ##   seq.i, binseg.fit$cv)
-  ## rect.dt.list[[seq.i]] <- binseg.fit$cv[, data.table(
-  ##   seq.i, max.times=times[1], second.times=times[2])]
 }
-diff.dt <- do.call(rbind, diff.dt.list)
-err.dt <- do.call(rbind, err.dt.list)
-cv.dt <- do.call(rbind, cv.dt.list)
-rect.dt <- do.call(rbind, rect.dt.list)
-diff.dt[order(param.name, param.value)]
-
-data.table::fwrite(diff.dt, "figure-neuroblastoma-one-label-data.csv")
+out.list <- list(
+  diff=do.call(rbind, diff.dt.list),
+  err=do.call(rbind, err.dt.list))
+saveRDS(out.list, "figure-neuroblastoma-one-label-data.rds")
 
