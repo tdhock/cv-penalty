@@ -18,13 +18,11 @@ for(bin.size in c(100, 500, 1000)){
   Mono27ac$coverage[, chromStart1 := chromStart+1L]
   setkey(Mono27ac$coverage, chromStart1, chromEnd)
   cov.in.bins <- foverlaps(Mono27ac$coverage, bin.dt, nomatch=0L)
-
   n.folds <- 3
   cov.in.bins[, fold := bin.i %% n.folds + 1]
   cov.in.bins[, dataStart := ifelse(chromStart < binStart, binStart, chromStart)]
   cov.in.bins[, dataEnd := ifelse(chromEnd < binEnd, chromEnd, binEnd)]
   stopifnot(cov.in.bins[, dataStart[-1] == dataEnd[-.N]])
-
   gg <- ggplot()+
     theme_bw()+
     theme(panel.spacing=grid::unit(0, "lines"))+
@@ -32,7 +30,6 @@ for(bin.size in c(100, 500, 1000)){
       dataEnd, count),
       data=cov.in.bins)+
     facet_grid(fold ~ .)
-
   for(validation.fold in 1:n.folds){
     cov.in.bins[, set := ifelse(fold==validation.fold, "validation", "train")]
     train.dt <- cov.in.bins[set=="train"]
@@ -69,14 +66,12 @@ for(bin.size in c(100, 500, 1000)){
       facet_grid(set ~ .)+
       coord_cartesian(xlim=c(205000, 210000))
   }
-
   ## just repeat train data in valid regions
   n.folds <- 2
   cov.in.bins[, fold := ((bin.i-1) %% n.folds) + 1]
   cov.in.bins[, dataStart := ifelse(chromStart < binStart, binStart, chromStart)]
   cov.in.bins[, dataEnd := ifelse(chromEnd < binEnd, chromEnd, binEnd)]
   stopifnot(cov.in.bins[, dataStart[-1] == dataEnd[-.N]])
-
   gg <- ggplot()+
     theme_bw()+
     theme(panel.spacing=grid::unit(0, "lines"))+
@@ -85,35 +80,25 @@ for(bin.size in c(100, 500, 1000)){
       data=cov.in.bins)+
     facet_grid(fold ~ .)
   print(gg)
-
   gg+coord_cartesian(xlim=c(2, 3)*1e5)
-
   gg+coord_cartesian(xlim=c(200000, 225000))
-
   gg+coord_cartesian(xlim=c(205000, 210000))
-
   ## 1 2 3 4 1 2 3 4
   ## _ 2 3 _ _ 2 3 _
   ## 2 2 3 3 2 2 3 3
-
   ## 1 2 3 4 1 2 3 4
   ## 1 _ _ 4 1 _ _ 4
   ## 1 1 4 4 1 1 4 4
-
   ## 1 2 3 4 1 2 3 4
   ## 1 2 _ _ 1 2 _ _
   ## 1 2 2 1 1 2 2 1
-
   ## 1 2 3 4 1 2 3 4
   ## _ _ 3 4 _ _ 3 4
   ## 3 3 3 4 4 3 3 4
-
   ## _ 2 _ 2
   ## 2 2 2 2
-
   ## 1 _ 1 _
   ## 1 1 1 1
-
   for(validation.fold in 1:n.folds){
     cov.in.bins[, set := ifelse(fold==validation.fold, "validation", "train")]
     train.dt <- cov.in.bins[set=="train"]
