@@ -1,8 +1,24 @@
+** TODOs
+
+- Figures showing qualitatively what happens when shuffling.
+
 ** 17 Feb 2022
 
 Want a setup so that overfitting to noise in train data is
 observed. That does not work with two constant values because they
-become better approximation of validation data as bin size is decreased.
+become better approximation of validation data as bin size is
+decreased. Try permuting one fold of bins in
+[[file:figure-search-valid-min-permutation.R]] makes
+
+[[file:figure-search-valid-min-permutation.png]]
+
+Figure above shows encouraging results. At smallest bin size (10
+bases) min valid loss results in log penalty of 8.0221 and a
+reasonable number of peaks (11). Should we also look at other metrics?
+Should we try different number of folds? (this was with 3)
+
+Below was original experiment which seemed not very convincing... min
+valid loss on smallest bin size had too many peaks...
 
 [[file:figure-search-valid-min-fill-two-constant.R]] makes
 

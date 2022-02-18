@@ -139,11 +139,21 @@ for(bin.size in c(10, 50, 100, 500, 1000, 5000, 10000)){
 }
 pen.dt <- do.call(rbind, pen.dt.list)
 
+## How many peaks in the models with min valid loss?
+pen.dt[
+, .SD[which.min(validation.loss)],
+  by=.(bin.size, validation.fold, seed)
+][, .(
+  count=.N
+), by=.(bin.size, peaks)
+][order(bin.size, peaks)]
+
 ##TODO.
 ggplot()+
   geom_segment(aes(
-    min.log.lambda, valid.PoissonLoss,
-    xend=max.log.lambda, yend=valid.PoissonLoss),
+    min.log.lambda, validation.loss,
+    color=factor(seed),
+    xend=max.log.lambda, yend=validation.loss),
     data=pen.dt)+
   facet_grid(validation.fold ~ bin.size, labeller=label_both)
 
@@ -159,9 +169,11 @@ mean.dt <- pen.dt[, {
     nomatch=0L)[
       min.log.lambda < max.log.penalty & min.log.penalty < max.log.lambda]
   over.dt[, .(
-    mean.valid.loss=mean(valid.loss), folds=.N
+    mean.valid.loss=mean(validation.loss), folds.seeds=.N
   ), by=.(min.log.penalty, max.log.penalty)]
 }, by=bin.size]
+
+mean.dt[, .SD[which.min(mean.valid.loss)], by=bin.size]
 
 gg <- ggplot()+
   geom_segment(aes(
@@ -171,7 +183,7 @@ gg <- ggplot()+
     data=mean.dt)+
   facet_grid(. ~ bin.size, labeller=label_both)
 png(
-  "figure-search-valid-min-fill-noise.png",
+  "figure-search-valid-min-permutation.png",
   width=10, height=3, units="in", res=200)
 print(gg)
 dev.off()
