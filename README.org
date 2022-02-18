@@ -1,3 +1,18 @@
+** 17 Feb 2022
+
+Want a setup so that overfitting to noise in train data is
+observed. That does not work with two constant values because they
+become better approximation of validation data as bin size is decreased.
+
+[[file:figure-search-valid-min-fill-two-constant.R]] makes
+
+[[file:figure-search-valid-min-fill-two-constant.png]]
+
+which shows that if we fill in validation regions with two constant
+values (first half from prior data point, second half from next data
+point), then the min valid loss always happens for small bin sizes,
+and small penalty values (too many peaks).
+
 ** 22 Nov 2021
 
 [[file:neuroblastoma.R]] experiment comparing various binary segmentation
